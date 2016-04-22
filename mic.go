@@ -9,7 +9,7 @@ import "fmt"
 	//bufferoptimize bool
 //}
 	
-func MicInput(chunkSize int, bfropt bool, pch chan<- float32) {
+func MicInput(chunkSize int, bfropt bool, pch *chan float32) {
 	
 
 	
@@ -49,17 +49,19 @@ func MicInput(chunkSize int, bfropt bool, pch chan<- float32) {
 			yin:= Yin{}
 			fmt.Println("New Chunk")
 			chkErr(stream.Read())
+			fmt.Println(input)
 			figurePitch(&yin, bufferincrement, input, pch, bufferSize, threshold)
 		}
 	}()
 }
 
-func figurePitch(yin *Yin, bufferincrement int, input []int16, pch chan<- float32, bufferSize int, threshold float32){
+func figurePitch(yin *Yin, bufferincrement int, input []int16, pch *chan float32, bufferSize int, threshold float32){
 	var pitch float32
 	fmt.Println("Processing")
 	for pitch < 10 {
-		fmt.Println(bufferSize)
+		//fmt.Println(bufferSize)
 		if bufferSize >= len(input) {
+			fmt.Println("Break")
 			pitch = -1
 			break
 		}
@@ -67,8 +69,9 @@ func figurePitch(yin *Yin, bufferincrement int, input []int16, pch chan<- float3
 		pitch = yin.GetPitch(&input)
 		bufferSize += bufferincrement
 	}
+	//fmt.Println(bufferSize)
 	fmt.Println(pitch)
-	pch<- pitch
+	*pch<- pitch
 }
 		
 func chkErr(err error){

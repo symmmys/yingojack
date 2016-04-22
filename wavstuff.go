@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	//"fmt"
+	"math"
 	"io"
 	"io/ioutil"
 )
@@ -129,8 +130,10 @@ func simpleWavReader(f string) WavFormat{
 
 type Pitch struct {
 	HopStamp int
-	pitch float32
-	pitchProbability float32
+	Detectedpitch float32
+	PitchProbability float32
+	StdFrequency float32
+	MidiNumber int
 }
 
 //Public function
@@ -163,6 +166,11 @@ func MonoAnalyser(f string, bufferapproximate bool, hopSize int) <-chan Pitch{
 		numIter = len(wavData)/hopSize
 	}
 	
+	
+	//load our frequency array
+	
+	freqArray := loadFreqArray()
+
 	//fmt.Println(numIter)
 	//fmt.Println(wavStuff.BitsPerSample, wavStuff.SampleRate)
 	data := make([]int16, hopSize)
@@ -189,18 +197,21 @@ func MonoAnalyser(f string, bufferapproximate bool, hopSize int) <-chan Pitch{
 		
 		//fmt.Println(pitch)
 		pitchLoop:
-		for pitch.pitch < 10 {
+		for pitch.Detectedpitch < 10 {
 			//fmt.Println("Hellooo", i)
 			if buffersize >= len(data) {
-				pitch.pitch = -1
+				pitch.Detectedpitch = -1
 				break pitchLoop
 			}
 			yin.YinInit(buffersize, threshold)
-			pitch.pitch = yin.GetPitch(&data)
+			pitch.Detectedpitch = yin.GetPitch(&data)
 			buffersize += bufferincrement
 		}
 	
-		pitch.pitchProbability = yin.GetProb()
+		pitch.PitchProbability = yin.GetProb()
+	
+	pitch.StdFrequency, pitch.MidiNumber = moarData(pitch.Detectedpitch, freqArray)
+	
 
 	//Load our channel with pitch data
 	pch <- pitch
@@ -213,3 +224,58 @@ func MonoAnalyser(f string, bufferapproximate bool, hopSize int) <-chan Pitch{
 	return pch
 }
 
+
+
+
+
+func loadFreqArray() *[88]float32{
+//looping over midi values
+	var frArr [88]float32
+	for i:= 21;i <=108; i++{
+	//midi to frequency; A4 = 440 Hz
+		
+		//very dirty; could use 1 << (exponent)or 1 >> (exponent) after casting to unsigned ints; not decided
+		frArr[i-21] = float32(math.Pow(2, float64((i-69))/float64(12.0)) * 440)
+	
+	}
+	return &frArr
+}
+
+func basicAbs(x float32) float32{
+	
+	if x < 0{
+		return -x
+	}
+	if x == 0 {
+		return 0
+	}
+	return x
+}
+
+func moarData(p float32, freqArray *[88]float32) (float32, int){
+	
+	pitch := p
+	
+	if pitch == -1 {
+		return 0, 0
+	}
+	
+	smallestDiff := basicAbs(pitch-(*freqArray)[0])
+	var stdFrequency float32
+	var midiNumber int
+	for n,val := range(*freqArray){
+		xDiff := basicAbs(pitch-val)
+		if xDiff < smallestDiff {
+			smallestDiff = xDiff
+			stdFrequency = val
+			midiNumber = n + 21
+		}
+	}
+	
+
+	
+	return stdFrequency, midiNumber
+	
+}
+	
+	
