@@ -8,5 +8,5 @@ The core implementation is ported from [here](https://github.com/ashokfernandez/
 
 Check /examples for some simple usage.
 
-Requires [portaudio](https://github.com/gordonklaus/portaudio) for microphone analysis.
-
+Requires [JACK](https://github.com/xthexder/go-jack) for microphone analysis.
+... Perhaps it could have options for either. I'm just getting started on this fork at the moment, so if you're reading this, it's probably not working yet.
